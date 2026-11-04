@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendor Dashboard · Colony Reverse Auction</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    .tabular { font-variant-numeric: tabular-nums; }
+    @keyframes pulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.8); } }
+    .live-dot { animation: pulseDot 1.6s ease-in-out infinite; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .toast-in { animation: toastIn .25s ease-out; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+ 
+  <!-- Top bar -->
+  <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-xl bg-emerald-600 text-white grid place-items-center shadow-sm">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l3-8H5.4M7 13L5.4 5M7 13l-2 4h13M9 21a1 1 0 100-2 1 1 0 000 2zm9 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
+        </div>
+        <div>
+          <h1 class="text-base font-bold leading-tight">Vendor Console</h1>
+          <p class="text-xs text-slate-500 leading-tight">Colony Reverse Auction</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:block text-right">
+          <p class="text-sm font-semibold leading-tight">Sharma Wholesale Traders</p>
+          <p class="text-xs text-slate-500 leading-tight">Verified vendor</p>
+        </div>
+        <div class="h-9 w-9 rounded-full bg-indigo-100 text-indigo-700 grid place-items-center font-bold text-sm">ST</div>
+      </div>
+    </div>
+  </header>
+ 
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+ 
+    <!-- Summary stats -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 lg:mb-8" aria-label="Summary">
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Active pools</p>
+        <p id="statPools" class="mt-1 text-2xl font-extrabold tabular">0</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Households in pools</p>
+        <p id="statHouseholds" class="mt-1 text-2xl font-extrabold tabular">0</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Bids you placed</p>
+        <p id="statBids" class="mt-1 text-2xl font-extrabold tabular">0</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Pools you're leading</p>
+        <p id="statLeading" class="mt-1 text-2xl font-extrabold text-emerald-600 tabular">0</p>
+      </div>
+    </section>
+ 
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+ 
+      <!-- Section 1: Active Hub Pools -->
+      <section class="lg:col-span-5 xl:col-span-4" aria-labelledby="poolsHeading">
+        <div class="flex items-center justify-between mb-3">
+          <h2 id="poolsHeading" class="text-lg font-bold">Active Hub Pools</h2>
+          <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+            <span class="live-dot h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Live
+          </span>
+        </div>
+        <ul id="poolList" class="space-y-3"></ul>
+      </section>
+ 
+      <!-- Section 2: Aggregated Demand & Bidding -->
+      <section class="lg:col-span-7 xl:col-span-8" aria-labelledby="demandHeading">
+        <h2 id="demandHeading" class="text-lg font-bold mb-3">Aggregated Demand &amp; Bidding</h2>
+        <div id="detail" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"></div>
+      </section>
+    </div>
+  </main>
+ 
+  <!-- Toast container -->
+  <div id="toasts" class="fixed bottom-4 right-4 left-4 sm:left-auto z-50 flex flex-col items-end gap-2 pointer-events-none"></div>
+ 
+  <script>
+    // ------------------------------------------------------------------
+    // Data (replace with API calls in production)
+    // ------------------------------------------------------------------
+    const now = Date.now();
+    const H = 3600 * 1000, M = 60 * 1000, S = 1000;
+ 
+    const pools = [
+      {
+        id: 'p1', name: 'Greenwood Residency', area: 'Sector 21 · Hub A', households: 38,
+        endsAt: now + 3 * H + 59 * M + 59 * S,
+        items: [
+          { name: 'Basmati Rice',  qty: 50, unit: 'kg',    ref: 92  },
+          { name: 'Fresh Milk',    qty: 30, unit: 'L',     ref: 62  },
+          { name: 'Farm Eggs',     qty: 40, unit: 'dozen', ref: 84  },
+          { name: 'Wheat Flour',   qty: 60, unit: 'kg',    ref: 47  },
+          { name: 'Toor Dal',      qty: 25, unit: 'kg',    ref: 148 },
+          { name: 'Sunflower Oil', qty: 20, unit: 'L',     ref: 138 },
+        ],
+        lowestBid: 14900, bids: 3, myBid: null,
+      },
+      {
+        id: 'p2', name: 'Lakeview Apartments', area: 'Sector 14 · Hub B', households: 54,
+        endsAt: now + 1 * H + 42 * M + 10 * S,
+        items: [
+          { name: 'Basmati Rice', qty: 80, unit: 'kg',    ref: 92 },
+          { name: 'Sugar',        qty: 45, unit: 'kg',    ref: 47 },
+          { name: 'Tea Leaves',   qty: 15, unit: 'kg',    ref: 420 },
+          { name: 'Onions',       qty: 70, unit: 'kg',    ref: 32 },
+          { name: 'Potatoes',     qty: 90, unit: 'kg',    ref: 29 },
+        ],
+        lowestBid: 21800, bids: 5, myBid: 22400,
+      },
+      {
+        id: 'p3', name: 'Maple Heights Colony', area: 'Sector 9 · Hub A', households: 22,
+        endsAt: now + 24 * M + 35 * S,
+        items: [
+          { name: 'Fresh Milk',   qty: 45, unit: 'L',     ref: 62 },
+          { name: 'Farm Eggs',    qty: 25, unit: 'dozen', ref: 84 },
+          { name: 'Tomatoes',     qty: 30, unit: 'kg',    ref: 38 },
+          { name: 'Bananas',      qty: 20, unit: 'dozen', ref: 56 },
+        ],
+        lowestBid: null, bids: 0, myBid: null,
+      },
+      {
+        id: 'p4', name: 'Orchid Enclave', area: 'Sector 32 · Hub C', households: 61,
+        endsAt: now + 6 * H + 15 * M,
+        items: [
+          { name: 'Wheat Flour',   qty: 120, unit: 'kg', ref: 47  },
+          { name: 'Toor Dal',      qty: 40,  unit: 'kg', ref: 148 },
+          { name: 'Sunflower Oil', qty: 55,  unit: 'L',  ref: 138 },
+          { name: 'Basmati Rice',  qty: 100, unit: 'kg', ref: 92  },
+          { name: 'Sugar',         qty: 60,  unit: 'kg', ref: 47  },
+        ],
+        lowestBid: 52300, bids: 2, myBid: null,
+      },
+    ];
+ 
+    let selectedId = pools[0].id;
+ 
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+    const inr = (n) => '₹' + Math.round(n).toLocaleString('en-IN');
+    const pad = (n) => String(n).padStart(2, '0');
+    const poolById = (id) => pools.find((p) => p.id === id);
+    const estTotal = (p) => p.items.reduce((s, i) => s + (i.qty * i.ref), 0);
+ 
+    function remainingMs(p) { return Math.max(0, p.endsAt - Date.now()); }
+ 
+    function fmtTime(ms) {
+      const t = Math.floor(ms / 1000);
+      return `${pad(Math.floor(t / 3600))}:${pad(Math.floor((t % 3600) / 60))}:${pad(t % 60)}`;
+    }
+ 
+    function timerTone(ms) {
+      if (ms <= 0) return { text: 'text-slate-400', chip: 'bg-slate-100 border-slate-200 text-slate-500' };
+      if (ms < 30 * M) return { text: 'text-rose-600', chip: 'bg-rose-50 border-rose-200 text-rose-600' };
+      if (ms < 2 * H) return { text: 'text-amber-600', chip: 'bg-amber-50 border-amber-200 text-amber-700' };
+      return { text: 'text-emerald-600', chip: 'bg-emerald-50 border-emerald-200 text-emerald-700' };
+    }
+ 
+    function statusOf(p) {
+      if (remainingMs(p) <= 0) return 'closed';
+      if (p.myBid !== null && p.lowestBid !== null && p.myBid <= p.lowestBid) return 'leading';
+      if (p.myBid !== null) return 'outbid';
+      return 'open';
+    }
+ 
+    function badge(status) {
+      const map = {
+        leading: ['Leading', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
+        outbid:  ['Outbid',  'bg-amber-50 text-amber-700 border-amber-200'],
+        open:    ['No bid yet', 'bg-slate-100 text-slate-600 border-slate-200'],
+        closed:  ['Closed',  'bg-slate-100 text-slate-500 border-slate-200'],
+      };
+      const [label, cls] = map[status];
+      return `<span class="text-[11px] font-semibold border rounded-full px-2 py-0.5 ${cls}">${label}</span>`;
+    }
+ 
+    // ------------------------------------------------------------------
+    // Render: pool list
+    // ------------------------------------------------------------------
+    function renderPools() {
+      const list = document.getElementById('poolList');
+      list.innerHTML = pools.map((p) => {
+        const ms = remainingMs(p);
+        const tone = timerTone(ms);
+        const selected = p.id === selectedId;
+        const units = p.items.reduce((s, i) => s + i.qty, 0);
+        return `
+          <li>
+            <button data-pool="${p.id}" type="button"
+              class="w-full text-left bg-white rounded-2xl border p-4 shadow-sm transition hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500
+                     ${selected ? 'border-emerald-500 ring-1 ring-emerald-500' : 'border-slate-200 hover:border-slate-300'}">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="font-semibold truncate">${p.name}</p>
+                  <p class="text-xs text-slate-500 mt-0.5">${p.area}</p>
+                </div>
+                <div data-chip="${p.id}" class="shrink-0 border rounded-lg px-2.5 py-1 ${tone.chip}">
+                  <span data-timer="${p.id}" class="text-sm font-bold tabular">${ms > 0 ? fmtTime(ms) : 'Closed'}</span>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <span>${p.households} households · ${p.items.length} items</span>
+                ${badge(statusOf(p))}
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-slate-50 rounded-lg px-2.5 py-2">
+                  <p class="text-slate-500">Est. value</p>
+                  <p class="font-bold text-slate-800 tabular">${inr(estTotal(p))}</p>
+                </div>
+                <div class="bg-slate-50 rounded-lg px-2.5 py-2">
+                  <p class="text-slate-500">Lowest bid</p>
+                  <p class="font-bold tabular ${p.lowestBid ? 'text-emerald-600' : 'text-slate-400'}">${p.lowestBid ? inr(p.lowestBid) : '—'}</p>
+                </div>
+              </div>
+            </button>
+          </li>`;
+      }).join('');
+ 
+      list.querySelectorAll('[data-pool]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selectedId = btn.dataset.pool;
+          renderPools();
+          renderDetail();
+          if (window.innerWidth < 1024) {
+            document.getElementById('demandHeading').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    }
+ 
+    // ------------------------------------------------------------------
+    // Render: detail (demand + bidding)
+    // ------------------------------------------------------------------
+    function renderDetail() {
+      const p = poolById(selectedId);
+      const ms = remainingMs(p);
+      const closed = ms <= 0;
+      const tone = timerTone(ms);
+      const total = estTotal(p);
+      const status = statusOf(p);
+ 
+      const rows = p.items.map((i, idx) => `
+        <tr class="${idx % 2 ? 'bg-slate-50/60' : ''}">
+          <td class="px-4 sm:px-6 py-3">
+            <p class="font-medium text-slate-800">${i.name}</p>
+          </td>
+          <td class="px-4 sm:px-6 py-3 text-right font-bold tabular">${i.qty} <span class="text-slate-500 font-medium">${i.unit}</span></td>
+          <td class="px-4 sm:px-6 py-3 text-right text-slate-600 tabular hidden sm:table-cell">${inr(i.ref)} / ${i.unit}</td>
+          <td class="px-4 sm:px-6 py-3 text-right font-semibold tabular">${inr(i.qty * i.ref)}</td>
+        </tr>`).join('');
+ 
+      const totalUnitsLabel = `${p.items.length} items`;
+ 
+      document.getElementById('detail').innerHTML = `
+        <!-- Header -->
+        <div class="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h3 class="text-xl font-bold">${p.name}</h3>
+              ${badge(status)}
+            </div>
+            <p class="text-sm text-slate-500 mt-1">${p.area} · ${p.households} households · ${totalUnitsLabel}</p>
+          </div>
+          <div class="flex items-center gap-3 border rounded-xl px-4 py-2.5 ${tone.chip}" data-chip="detail">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
+            <div>
+              <p class="text-[10px] uppercase tracking-wider font-semibold opacity-80">${closed ? 'Status' : 'Bidding closes in'}</p>
+              <p data-timer="detail" class="text-lg font-extrabold leading-tight tabular">${closed ? 'Closed' : fmtTime(ms)}</p>
+            </div>
+          </div>
+        </div>
+ 
+        <!-- Demand table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs uppercase tracking-wide text-slate-500 bg-slate-50 border-b border-slate-200">
+                <th class="px-4 sm:px-6 py-3 text-left font-semibold">Item</th>
+                <th class="px-4 sm:px-6 py-3 text-right font-semibold">Total requested</th>
+                <th class="px-4 sm:px-6 py-3 text-right font-semibold hidden sm:table-cell">Market ref.</th>
+                <th class="px-4 sm:px-6 py-3 text-right font-semibold">Est. value</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">${rows}</tbody>
+            <tfoot>
+              <tr class="border-t border-slate-200 bg-slate-50">
+                <td class="px-4 sm:px-6 py-3 font-bold" colspan="1">Total est. market value</td>
+                <td class="hidden sm:table-cell"></td>
+                <td class="sm:hidden"></td>
+                <td class="px-4 sm:px-6 py-3"></td>
+                <td class="px-4 sm:px-6 py-3 text-right font-extrabold tabular">${inr(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+ 
+        <!-- Bidding -->
+        <div class="p-4 sm:p-6 border-t border-slate-200 bg-gradient-to-b from-white to-slate-50">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p class="text-xs text-slate-500">Colony budget ceiling</p>
+              <p class="text-lg font-bold tabular">${inr(total)}</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p class="text-xs text-slate-500">Current lowest bid</p>
+              <p class="text-lg font-bold tabular ${p.lowestBid ? 'text-emerald-600' : 'text-slate-400'}">${p.lowestBid ? inr(p.lowestBid) : 'No bids yet'}</p>
+              <p class="text-[11px] text-slate-500">${p.bids} bid${p.bids === 1 ? '' : 's'} placed</p>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p class="text-xs text-slate-500">Your latest bid</p>
+              <p class="text-lg font-bold tabular ${p.myBid ? 'text-indigo-600' : 'text-slate-400'}">${p.myBid ? inr(p.myBid) : '—'}</p>
+            </div>
+          </div>
+ 
+          <form id="bidForm" novalidate class="space-y-3">
+            <label for="bidInput" class="block text-sm font-semibold">Total Bid Price</label>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <div class="relative flex-1">
+                <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 font-semibold">₹</span>
+                <input id="bidInput" type="number" inputmode="numeric" min="1" step="1"
+                  placeholder="${p.lowestBid ? 'Lower than ' + p.lowestBid.toLocaleString('en-IN') : 'Enter total price for the entire pool'}"
+                  ${closed ? 'disabled' : ''}
+                  class="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-4 py-3 text-base font-semibold tabular placeholder:font-normal placeholder:text-slate-400
+                         focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100 disabled:cursor-not-allowed" />
+              </div>
+              <button id="bidBtn" type="submit" ${closed ? 'disabled' : ''}
+                class="rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold px-6 py-3 shadow-sm transition
+                       focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-500
+                       disabled:bg-slate-300 disabled:cursor-not-allowed">
+                Submit Bid
+              </button>
+            </div>
+            <p id="bidHint" class="text-sm text-slate-500 min-h-[1.25rem]">
+              ${closed ? 'This pool is closed. Bidding is no longer available.' : 'Reverse auction: the lowest bid wins. Your bid must cover the entire pool and be lower than the current lowest bid.'}
+            </p>
+          </form>
+        </div>`;
+ 
+      if (!closed) wireBidForm(p);
+    }
+ 
+    function wireBidForm(p) {
+      const form = document.getElementById('bidForm');
+      const input = document.getElementById('bidInput');
+      const hint = document.getElementById('bidHint');
+      const total = estTotal(p);
+ 
+      const setHint = (msg, kind) => {
+        const colors = { info: 'text-slate-500', ok: 'text-emerald-600', err: 'text-rose-600' };
+        hint.className = 'text-sm min-h-[1.25rem] ' + colors[kind];
+        hint.textContent = msg;
+      };
+ 
+      input.addEventListener('input', () => {
+        const v = Number(input.value);
+        if (!input.value || v <= 0) return setHint('Reverse auction: the lowest bid wins.', 'info');
+        const diff = ((total - v) / total) * 100;
+        const per = diff >= 0
+          ? `${diff.toFixed(1)}% below the colony's estimated market value`
+          : `${Math.abs(diff).toFixed(1)}% above the colony's budget ceiling`;
+        setHint(`${inr(v)} — ${per}.`, diff >= 0 ? 'ok' : 'err');
+      });
+ 
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (remainingMs(p) <= 0) return setHint('This pool has closed.', 'err');
+        const v = Math.round(Number(input.value));
+        if (!input.value || !isFinite(v) || v <= 0) return setHint('Enter a valid total bid price.', 'err');
+        if (v > total) return setHint(`Bid exceeds the colony's budget ceiling of ${inr(total)}.`, 'err');
+        if (p.lowestBid !== null && v >= p.lowestBid) {
+          return setHint(`Your bid must be lower than the current lowest bid of ${inr(p.lowestBid)}.`, 'err');
+        }
+
+        // Send the bid to your PHP backend
+        try {
+          const response = await fetch('http://127.0.0.1:8000/submit_bid.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pool_id: parseInt(p.id.replace(/[^0-9]/g, '')), // Extracts the actual database pool ID
+              vendor_id: 1, // Default vendor ID for testing
+              bid_amount: v
+            })
+          });
+          const result = await response.json();
+          
+          if (result.status === 'success') {
+            p.lowestBid = v;
+            p.myBid = v;
+            p.bids += 1;
+            toast(`Bid of ${inr(v)} submitted for ${p.name}. You're leading!`);
+            renderAll();
+          } else {
+            setHint(result.message || 'Failed to submit bid to server.', 'err');
+          }
+        } catch (err) {
+          console.error("Bid submission error:", err);
+          setHint('Network error connecting to server.', 'err');
+        }
+      });
+    }
+ 
+    // ------------------------------------------------------------------
+    // Stats, toasts, ticking
+    // ------------------------------------------------------------------
+    function renderStats() {
+      const active = pools.filter((p) => remainingMs(p) > 0);
+      document.getElementById('statPools').textContent = active.length;
+      document.getElementById('statHouseholds').textContent = active.reduce((s, p) => s + p.households, 0);
+      document.getElementById('statBids').textContent = pools.filter((p) => p.myBid !== null).length;
+      document.getElementById('statLeading').textContent = pools.filter((p) => statusOf(p) === 'leading').length;
+    }
+ 
+    function toast(msg) {
+      const el = document.createElement('div');
+      el.className = 'toast-in pointer-events-auto max-w-sm w-full sm:w-auto bg-slate-900 text-white text-sm rounded-xl shadow-lg px-4 py-3 flex items-center gap-2';
+      el.innerHTML = `<svg class="h-5 w-5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg><span>${msg}</span>`;
+      document.getElementById('toasts').appendChild(el);
+      setTimeout(() => el.remove(), 4000);
+    }
+ 
+    function renderAll() {
+      renderStats();
+      renderPools();
+      renderDetail();
+    }
+ 
+    function tick() {
+      let needsFullRender = false;
+      pools.forEach((p) => {
+        const ms = remainingMs(p);
+        const tone = timerTone(ms);
+        const label = ms > 0 ? fmtTime(ms) : 'Closed';
+ 
+        const t = document.querySelector(`[data-timer="${p.id}"]`);
+        if (t) t.textContent = label;
+        const chip = document.querySelector(`[data-chip="${p.id}"]`);
+        if (chip) chip.className = `shrink-0 border rounded-lg px-2.5 py-1 ${tone.chip}`;
+ 
+        if (p.id === selectedId) {
+          const dt = document.querySelector('[data-timer="detail"]');
+          if (dt) dt.textContent = label;
+          const dc = document.querySelector('[data-chip="detail"]');
+          if (dc) dc.className = `flex items-center gap-3 border rounded-xl px-4 py-2.5 ${tone.chip}`;
+        }
+ 
+        if (ms <= 0 && !p._closedRendered) {
+          p._closedRendered = true;
+          needsFullRender = true;
+        }
+      });
+      if (needsFullRender) renderAll();
+    }
+ 
+    renderAll();
+    setInterval(tick, 1000);
+  </script>
+  <!-- New Script -->
+   <script>
+    // Directly inject live database data into the first pool
+    async function loadLivePool() {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/get_aggregated_demand.php');
+        const data = await response.json();
+
+        if (data.status === 'success' && data.items.length > 0) {
+          const liveItems = data.items.map(item => ({
+            name: item.name,
+            qty: parseInt(item.total_quantity),
+            unit: item.unit_size,
+            ref: 100 
+          }));
+
+          // Overwrite the first pool (Greenwood Residency) with your actual live data
+          pools[0] = {
+            id: 'live_' + data.pool_id,
+            name: 'Live App Order Pool',
+            area: 'Aggregated from Flutter',
+            households: 1,
+            endsAt: Date.now() + (5 * 60 * 60 * 1000), // Forces pool open for 5 hours for testing
+            items: liveItems,
+            lowestBid: null,
+            bids: 0,
+            myBid: null
+          };
+
+          selectedId = pools[0].id;
+          renderAll();
+        }
+      } catch (err) {
+        console.error("Failed to load live pool:", err);
+      }
+    }
+
+    // Run automatically when the page loads
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(loadLivePool, 300);
+    });
+  </script>
+</body>
+</html>
+ 
