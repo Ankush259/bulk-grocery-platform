@@ -1,6 +1,6 @@
 # Bulk Grocery Reverse Auction Platform
 
-A demand aggregation and reverse auction system that groups local grocery orders into bulk pools, allowing wholesale vendors to bid for the fulfillment contract. The lowest bid wins, driving down prices for buyers.
+A demand aggregation and reverse auction  system that groups local grocery orders into bulk pools, allowing wholesale vendors to bid for the fulfillment contract. The lowest bid wins, driving down prices for buyers.
 
 ## Tech Stack
 * **Frontend Dashboard:** HTML5, CSS, JavaScript (Fetch API)
@@ -13,6 +13,12 @@ A demand aggregation and reverse auction system that groups local grocery orders
 * `/flutter_buyer_app/` - The mobile application where consumers place their grocery orders.
 * `vendor_dashboard.html` - The web interface where wholesale vendors view active pools and submit lower bids.
 * `bulk_grocery.sql` - The database schema and dummy data export for local setup.
+  
+* ## Buyer/User Workflow (Flutter App)
+1. **Order Placement:** Consumers use the Flutter mobile app to browse grocery items and add them to their shared cart.
+2. **Pool Entry:** Instead of standard immediate checkout, individual consumer orders are grouped into a localized bulk pool based on their area (e.g., "Sector 14" or "Live App Order Pool").
+3. **Auction Phase:** The aggregated pool is pushed to the active auction block, where wholesale vendors bid on it.
+4. **Fulfillment & Savings:** Once the auction timer closes, the winning vendor's discounted price is calculated, and users receive their groceries at a lower cost than retail.
 
 ## Installation & Setup
 
