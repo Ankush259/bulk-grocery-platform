@@ -1,6 +1,6 @@
 <?php
 // db_connect.php
-$servername = "localhost";
+$servername = "127.0.0.1";
 $username = "root"; // Default XAMPP/MySQL username
 $password = ""; // Default XAMPP/MySQL password (usually blank)
 $dbname = "bulk_grocery";

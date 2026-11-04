@@ -6,7 +6,7 @@ header("Access-Control-Allow-Origin: *");
 require 'db_connect.php';
 
 // 1. Fetch the active pool for Tohana Central Hub (colony_id = 1)
-$poolQuery = "SELECT pool_id, closes_at FROM order_pools WHERE colony_id = 1 AND status = 'aggregating' LIMIT 1";
+$poolQuery = "SELECT pool_id, closes_at FROM order_pools WHERE status = 'open' LIMIT 1";
 $poolResult = $conn->query($poolQuery);
 
 if ($poolResult->num_rows > 0) {
