@@ -34,3 +34,8 @@ A demand aggregation and reverse auction  system that groups local grocery order
 2. Start the PHP server on port 8000:
    ```bash
    php -S 127.0.0.1:8000
+**3. Start the Flutter app using VS Code terminal
+1. Open Git Bash Terminal
+2. Change directory to flutter_buyer_app using `cd flutter_buyer_app` command
+3. Then run this command `flutter run -d chrome` on Git Bash Terminal.
+4. A flutter app will open into your chrome dashboard which is User End interface(where you can add and test it).
